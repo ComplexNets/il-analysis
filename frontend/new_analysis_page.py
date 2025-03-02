@@ -157,7 +157,7 @@ def run_analysis():
             st.write("Analyze how different fragments influence ionic liquid properties using linear regression.")
             
             # Select property for analysis
-            property_options = [col for col in combinations.columns if col not in ['name', 'cation', 'anion', 'alkyl_chain', 'functional_group', 'in_ilthermo', 'pareto_score']]
+            property_options = [col for col in combinations.columns if col not in ['name', 'cation', 'anion', 'alkyl_chain', 'functional_group', 'in_ilthermo', 'pareto_score'] and pd.api.types.is_numeric_dtype(combinations[col])]
             selected_property = st.selectbox("Select property to analyze:", property_options)
             
             if st.button("Run Fragment Analysis"):
