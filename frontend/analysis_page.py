@@ -20,7 +20,7 @@ def run_advanced_analysis():
     
     # Check if combinations data exists in session state
     if 'combinations' not in st.session_state or not st.session_state.combinations:
-        st.warning("No ionic liquid data available for analysis. Please run property calculations first.")
+        st.warning("No ionic liquid data available for analysis. Please run property calculations first or upload a csv file.")
         return
     
     # Get combinations data from session state
