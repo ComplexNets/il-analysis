@@ -746,6 +746,233 @@ class MonteCarloAnalyzer:
         
         return np.array(all_simulated_values)
 
+class StatisticsAnalyzer:
+    """Class for analyzing and visualizing basic statistics of ionic liquid properties"""
+    
+    def __init__(self, combinations):
+        """Initialize with combinations data"""
+        self.combinations = combinations
+        self.df = pd.DataFrame(combinations)
+        self.property_mapping = {
+            'Density (kg/m³)': {'unit': 'kg/m³', 'short_name': 'density'},
+            'Heat Capacity (J/mol·K)': {'unit': 'J/mol·K', 'short_name': 'heat_capacity'},
+            'Toxicity (IC50 in mM)': {'unit': 'mM', 'short_name': 'toxicity'},
+            'Solubility (g/L)': {'unit': 'g/L', 'short_name': 'solubility'},
+            'Hydrophobicity (logP)': {'unit': 'logP', 'short_name': 'hydrophobicity'},
+            'Viscosity (Pa·s)': {'unit': 'Pa·s', 'short_name': 'viscosity'}
+        }
+        # Alternative column names that might be in the data
+        self.alt_property_names = {
+            'density': ['Density (kg/m³)', 'Density', 'density'],
+            'heat_capacity': ['Heat Capacity (J/mol·K)', 'Heat Capacity', 'heat_capacity'],
+            'toxicity': ['Toxicity (IC50 in mM)', 'Toxicity', 'toxicity'],
+            'solubility': ['Solubility (g/L)', 'Solubility', 'solubility'],
+            'hydrophobicity': ['Hydrophobicity (logP)', 'Hydrophobicity', 'LogP', 'hydrophobicity', 'log_p', 'logP'],
+            'viscosity': ['Viscosity (Pa·s)', 'Viscosity', 'viscosity']
+        }
+        
+        # Print available columns for debugging
+        print("Available columns in dataframe:", self.df.columns.tolist())
+        
+        # Check and handle hydrophobicity specifically
+        self.check_and_handle_hydrophobicity()
+    
+    def check_and_handle_hydrophobicity(self):
+        """Specifically check for hydrophobicity property and handle it if found"""
+        # Look for any column containing hydrophobicity-related terms
+        hydrophobicity_col = None
+        for col in self.df.columns:
+            col_lower = col.lower()
+            if 'hydro' in col_lower or 'logp' in col_lower or 'log_p' in col_lower:
+                hydrophobicity_col = col
+                break
+        
+        # If found but not in our standard format, add it to alt_property_names
+        if hydrophobicity_col and hydrophobicity_col not in self.alt_property_names['hydrophobicity']:
+            print(f"Found hydrophobicity column: {hydrophobicity_col}")
+            self.alt_property_names['hydrophobicity'].append(hydrophobicity_col)
+    
+    def get_property_column(self, property_short_name):
+        """Find the actual column name in the dataframe for a given property short name"""
+        possible_names = self.alt_property_names.get(property_short_name, [])
+        for name in possible_names:
+            if name in self.df.columns:
+                return name
+        return None
+    
+    def calculate_statistics(self):
+        """Calculate basic statistics for all properties"""
+        stats_data = {}
+        
+        # Print which properties are found and which are not
+        print("Property detection results:")
+        
+        for prop_short_name, possible_names in self.alt_property_names.items():
+            # Find the actual column name in the dataframe
+            col_name = self.get_property_column(prop_short_name)
+            
+            print(f"  - {prop_short_name}: {'Found' if col_name else 'Not found'} - Looked for {possible_names}")
+            
+            if col_name is not None and col_name in self.df.columns:
+                # Get the unit from property mapping if available
+                unit = ''
+                for orig_name, info in self.property_mapping.items():
+                    if info['short_name'] == prop_short_name:
+                        unit = info['unit']
+                        break
+                
+                # Calculate statistics
+                values = self.df[col_name].dropna()
+                if len(values) > 0:
+                    min_val = values.min()
+                    max_val = values.max()
+                    mean_val = values.mean()
+                    
+                    stats_data[prop_short_name] = {
+                        'name': col_name,
+                        'min': min_val,
+                        'max': max_val,
+                        'range': f"{min_val:.1f} - {max_val:.1f} {unit}",
+                        'average': f"{mean_val:.1f} {unit}",
+                        'mean': mean_val,
+                        'unit': unit
+                    }
+        
+        return stats_data
+    
+    def plot_property_distributions(self, figsize=(12, 8)):
+        """Create histograms for all properties"""
+        stats_data = self.calculate_statistics()
+        
+        if not stats_data:
+            return None, "No property data available for plotting"
+        
+        # Determine number of properties to plot
+        n_properties = len(stats_data)
+        if n_properties == 0:
+            return None, "No properties found for plotting"
+        
+        # Calculate grid dimensions
+        n_cols = min(3, n_properties)
+        n_rows = (n_properties + n_cols - 1) // n_cols
+        
+        # Create figure
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=figsize)
+        
+        # Flatten axes array for easy iteration
+        if n_properties > 1:
+            axes = axes.flatten()
+        else:
+            axes = [axes]
+        
+        # Plot each property
+        for i, (prop_name, stats) in enumerate(stats_data.items()):
+            if i < len(axes):
+                ax = axes[i]
+                
+                # Get data
+                values = self.df[stats['name']].dropna()
+                
+                # Create histogram with KDE
+                sns.histplot(values, kde=True, ax=ax)
+                
+                # Add vertical lines for mean and range
+                ax.axvline(stats['mean'], color='red', linestyle='--', label=f"Mean: {stats['mean']:.1f}")
+                ax.axvline(stats['min'], color='green', linestyle=':', label=f"Min: {stats['min']:.1f}")
+                ax.axvline(stats['max'], color='green', linestyle=':', label=f"Max: {stats['max']:.1f}")
+                
+                # Set labels
+                ax.set_title(f"{stats['name']} Distribution")
+                ax.set_xlabel(f"{stats['name']} ({stats['unit']})")
+                ax.set_ylabel("Frequency")
+                ax.legend()
+        
+        # Hide any unused subplots
+        for i in range(n_properties, len(axes)):
+            axes[i].set_visible(False)
+        
+        plt.tight_layout()
+        return fig, None
+    
+    def plot_property_boxplots(self, figsize=(12, 8)):
+        """Create individual boxplots for each property"""
+        stats_data = self.calculate_statistics()
+        
+        if not stats_data:
+            return None, "No property data available for plotting"
+        
+        # Determine number of properties to plot
+        n_properties = len(stats_data)
+        if n_properties == 0:
+            return None, "No properties found for plotting"
+        
+        # Calculate grid dimensions
+        n_cols = min(3, n_properties)
+        n_rows = (n_properties + n_cols - 1) // n_cols
+        
+        # Create figure
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=figsize)
+        
+        # Flatten axes array for easy iteration
+        if n_properties > 1:
+            axes = axes.flatten()
+        else:
+            axes = [axes]
+        
+        # Plot each property
+        for i, (prop_name, stats) in enumerate(stats_data.items()):
+            if i < len(axes):
+                ax = axes[i]
+                
+                # Get data
+                values = self.df[stats['name']].dropna()
+                
+                if len(values) > 0:
+                    # Create boxplot
+                    bp = ax.boxplot([values], patch_artist=True)
+                    
+                    # Customize boxplot colors
+                    for box in bp['boxes']:
+                        box.set(facecolor='lightblue', alpha=0.7)
+                    
+                    # Set labels
+                    ax.set_title(f"{stats['name']} Distribution")
+                    ax.set_ylabel(f"Value ({stats['unit']})")
+                    
+                    # Remove x-axis labels since we only have one boxplot per subplot
+                    ax.set_xticks([])
+                    
+                    # Add statistics as text
+                    stats_text = f"Min: {stats['min']:.1f}\nMax: {stats['max']:.1f}\nMean: {stats['mean']:.1f}"
+                    ax.text(0.95, 0.05, stats_text, transform=ax.transAxes, 
+                           verticalalignment='bottom', horizontalalignment='right',
+                           bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
+        
+        # Hide any unused subplots
+        for i in range(n_properties, len(axes)):
+            axes[i].set_visible(False)
+        
+        plt.tight_layout()
+        return fig, None
+    
+    def create_statistics_table(self):
+        """Create a formatted table of statistics"""
+        stats_data = self.calculate_statistics()
+        
+        if not stats_data:
+            return pd.DataFrame()
+        
+        # Create DataFrame for display
+        table_data = []
+        for prop_name, stats in stats_data.items():
+            table_data.append({
+                'Property': stats['name'],
+                'Range': stats['range'],
+                'Average': stats['average']
+            })
+        
+        return pd.DataFrame(table_data)
+
 class PCAAnalyzer:
     """Class for Principal Component Analysis of ionic liquid properties"""
     
