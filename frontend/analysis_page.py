@@ -44,6 +44,14 @@ def run_advanced_analysis():
     # Convert combinations to DataFrame for analysis
     df = pd.DataFrame(combinations)
     
+    # Add Data Preview in a collapsible expander
+    with st.expander("Data Preview", expanded=False):
+        st.write(f"Loaded data with {len(df)} rows and {len(df.columns)} columns")
+        st.write("Column names:", df.columns.tolist())
+        
+        # Show a preview of the data
+        st.dataframe(df.head())
+    
     # Create tabs for different analyses
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "Fragment Influence Analysis", 
@@ -570,59 +578,29 @@ def run_advanced_analysis():
         st.header("Property Statistics")
         st.write("View and analyze statistical distributions of ionic liquid properties.")
         
-        # Debug information
-        st.subheader("Debug Information")
-        df = pd.DataFrame(combinations)
-        st.write("DataFrame Columns:", df.columns.tolist())
-        
-        # Check for hydrophobicity-related columns
-        hydrophobicity_columns = [col for col in df.columns if 'hydro' in col.lower() or 'logp' in col.lower() or 'log_p' in col.lower()]
-        st.write("Hydrophobicity-related columns:", hydrophobicity_columns)
-        
-        # Display sample data
-        st.write("Sample Data (first 5 rows):")
-        st.dataframe(df.head())
-        st.markdown("---")
-        
         # Create statistics analyzer
         statistics_analyzer = StatisticsAnalyzer(combinations)
         
-        # Calculate and display statistics table
+        # Display statistics table
+        st.subheader("Property Statistics Summary")
         stats_table = statistics_analyzer.create_statistics_table()
+        st.dataframe(stats_table)
         
-        if not stats_table.empty:
-            st.subheader("Property Statistics Summary")
-            st.dataframe(stats_table)
-            
-            # Provide download link for statistics table
-            csv = stats_table.to_csv(index=False)
-            b64 = base64.b64encode(csv.encode()).decode()
-            href = f'<a href="data:file/csv;base64,{b64}" download="property_statistics.csv">Download Statistics Table</a>'
-            st.markdown(href, unsafe_allow_html=True)
-            
-            # Display distribution plots
-            st.subheader("Property Distributions")
-            
-            # Create tabs for different visualization types
-            dist_tab1, dist_tab2 = st.tabs(["Histograms", "Boxplots"])
-            
-            with dist_tab1:
-                # Plot histograms
-                fig_hist, error_msg = statistics_analyzer.plot_property_distributions()
-                if fig_hist:
-                    st.pyplot(fig_hist)
-                elif error_msg:
-                    st.warning(error_msg)
-            
-            with dist_tab2:
-                # Plot boxplots
-                fig_box, error_msg = statistics_analyzer.plot_property_boxplots()
-                if fig_box:
-                    st.pyplot(fig_box)
-                elif error_msg:
-                    st.warning(error_msg)
-        else:
-            st.warning("No property data available for statistical analysis.")
+        # Plot property distributions
+        st.subheader("Property Distributions")
+        fig, error = statistics_analyzer.plot_property_distributions()
+        if fig:
+            st.pyplot(fig)
+        elif error:
+            st.error(error)
+        
+        # Plot property boxplots
+        st.subheader("Property Boxplots")
+        fig, error = statistics_analyzer.plot_property_boxplots()
+        if fig:
+            st.pyplot(fig)
+        elif error:
+            st.error(error)
 
 if __name__ == "__main__":
     run_advanced_analysis()

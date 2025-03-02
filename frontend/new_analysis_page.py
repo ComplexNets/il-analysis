@@ -11,6 +11,7 @@ from typing import Dict, List, Tuple, Optional, Union, Any
 import io
 import base64
 import scipy.stats as stats
+import time
 
 # Import analysis modules
 try:
@@ -52,9 +53,6 @@ def run_analysis():
         # Use a relative path that will work on Railway
         sample_data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "thermal-1000-SAMPLE.csv")
         
-        # Display the path for debugging
-        st.info(f"Looking for sample data at: {sample_data_path}")
-        
         if os.path.exists(sample_data_path):
             try:
                 # Try different encodings
@@ -63,7 +61,6 @@ def run_analysis():
                     try:
                         combinations = pd.read_csv(sample_data_path, encoding=encoding)
                         data_loaded = True
-                        st.success(f"Successfully loaded sample data using {encoding} encoding")
                         break
                     except UnicodeDecodeError:
                         continue
@@ -86,7 +83,7 @@ def run_analysis():
                 try:
                     combinations = pd.read_csv(uploaded_file, encoding=encoding)
                     data_loaded = True
-                    st.success(f"Successfully loaded data using {encoding} encoding")
+                    
                     break
                 except UnicodeDecodeError:
                     # Reset file pointer for next attempt
@@ -104,10 +101,13 @@ def run_analysis():
     if data_loaded:
         # Convert to list of dictionaries for compatibility with analysis code
         
-        # Debug information
-        st.subheader("Data Preview")
-        st.write(f"Loaded data with {len(combinations)} rows and {len(combinations.columns)} columns")
-        st.write("Column names:", combinations.columns.tolist())
+        # Data Preview in a collapsible expander
+        with st.expander("Data Preview", expanded=False):
+            st.write(f"Loaded data with {len(combinations)} rows and {len(combinations.columns)} columns")
+            st.write("Column names:", combinations.columns.tolist())
+            
+            # Show a preview of the data
+            st.dataframe(combinations.head())
         
         # Check for required fragment columns with proper casing
         fragment_cols = ['cation', 'anion', 'alkyl_chain', 'functional_group']
@@ -122,7 +122,6 @@ def run_analysis():
         # Rename columns to match expected format
         if column_mapping:
             combinations = combinations.rename(columns=column_mapping)
-            st.success(f"Renamed columns to match expected format: {column_mapping}")
         
         # Check if any required columns are still missing
         missing_cols = [col for col in fragment_cols if col not in combinations.columns]
@@ -139,9 +138,6 @@ def run_analysis():
                     combinations[col] = pd.to_numeric(combinations[col], errors='coerce')
                 except Exception as e:
                     st.warning(f"Could not convert {col} to numeric: {e}")
-        
-        # Show a preview of the data
-        st.dataframe(combinations.head())
         
         # Convert to list of dictionaries for compatibility with analysis code
         combinations_list = combinations.to_dict('records')
@@ -861,59 +857,29 @@ def run_analysis():
             st.header("Property Statistics")
             st.write("View and analyze statistical distributions of ionic liquid properties.")
             
-            # Debug information
-            st.subheader("Debug Information")
-            df = pd.DataFrame(combinations_list)
-            st.write("DataFrame Columns:", df.columns.tolist())
-            
-            # Check for hydrophobicity-related columns
-            hydrophobicity_columns = [col for col in df.columns if 'hydro' in col.lower() or 'logp' in col.lower() or 'log_p' in col.lower()]
-            st.write("Hydrophobicity-related columns:", hydrophobicity_columns)
-            
-            # Display sample data
-            st.write("Sample Data (first 5 rows):")
-            st.dataframe(df.head())
-            st.markdown("---")
-            
             # Create statistics analyzer
             statistics_analyzer = StatisticsAnalyzer(combinations_list)
             
-            # Calculate and display statistics table
+            # Display statistics table
+            st.subheader("Property Statistics Summary")
             stats_table = statistics_analyzer.create_statistics_table()
+            st.dataframe(stats_table)
             
-            if not stats_table.empty:
-                st.subheader("Property Statistics Summary")
-                st.dataframe(stats_table)
-                
-                # Provide download link for statistics table
-                csv = stats_table.to_csv(index=False)
-                b64 = base64.b64encode(csv.encode()).decode()
-                href = f'<a href="data:file/csv;base64,{b64}" download="property_statistics.csv">Download Statistics Table</a>'
-                st.markdown(href, unsafe_allow_html=True)
-                
-                # Display distribution plots
-                st.subheader("Property Distributions")
-                
-                # Create tabs for different visualization types
-                dist_tab1, dist_tab2 = st.tabs(["Histograms", "Boxplots"])
-                
-                with dist_tab1:
-                    # Plot histograms
-                    fig_hist, error_msg = statistics_analyzer.plot_property_distributions()
-                    if fig_hist:
-                        st.pyplot(fig_hist)
-                    elif error_msg:
-                        st.warning(error_msg)
-                
-                with dist_tab2:
-                    # Plot boxplots
-                    fig_box, error_msg = statistics_analyzer.plot_property_boxplots()
-                    if fig_box:
-                        st.pyplot(fig_box)
-                    elif error_msg:
-                        st.warning(error_msg)
-            else:
-                st.warning("No property data available for statistical analysis.")
+            # Plot property distributions
+            st.subheader("Property Distributions")
+            fig, error = statistics_analyzer.plot_property_distributions()
+            if fig:
+                st.pyplot(fig)
+            elif error:
+                st.error(error)
+            
+            # Plot property boxplots
+            st.subheader("Property Boxplots")
+            fig, error = statistics_analyzer.plot_property_boxplots()
+            if fig:
+                st.pyplot(fig)
+            elif error:
+                st.error(error)
     
     else:
         st.info("Please upload a CSV file to begin analysis.")

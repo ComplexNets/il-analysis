@@ -881,9 +881,18 @@ class StatisticsAnalyzer:
                 ax.axvline(stats['min'], color='green', linestyle=':', label=f"Min: {stats['min']:.1f}")
                 ax.axvline(stats['max'], color='green', linestyle=':', label=f"Max: {stats['max']:.1f}")
                 
-                # Set labels
+                # Set labels - avoid duplicate units
                 ax.set_title(f"{stats['name']} Distribution")
-                ax.set_xlabel(f"{stats['name']} ({stats['unit']})")
+                
+                # Use just the property name without units for x-axis label, then add units once
+                property_name = stats['name']
+                if '(' in property_name:
+                    # The property name already includes units in parentheses
+                    ax.set_xlabel(property_name)
+                else:
+                    # Add units to the property name
+                    ax.set_xlabel(f"{property_name} ({stats['unit']})")
+                
                 ax.set_ylabel("Frequency")
                 ax.legend()
         
@@ -935,9 +944,18 @@ class StatisticsAnalyzer:
                     for box in bp['boxes']:
                         box.set(facecolor='lightblue', alpha=0.7)
                     
-                    # Set labels
+                    # Set labels - avoid duplicate units
                     ax.set_title(f"{stats['name']} Distribution")
-                    ax.set_ylabel(f"Value ({stats['unit']})")
+                    
+                    # Use just the property name for the title, and add units once to y-axis
+                    property_name = stats['name']
+                    if '(' in property_name:
+                        # Extract just the property name without units
+                        clean_name = property_name.split('(')[0].strip()
+                        ax.set_ylabel(property_name)
+                    else:
+                        # Add units to the y-axis label
+                        ax.set_ylabel(f"{property_name} ({stats['unit']})")
                     
                     # Remove x-axis labels since we only have one boxplot per subplot
                     ax.set_xticks([])
@@ -965,8 +983,11 @@ class StatisticsAnalyzer:
         # Create DataFrame for display
         table_data = []
         for prop_name, stats in stats_data.items():
+            # Use property name without duplicating units
+            property_name = stats['name']
+            
             table_data.append({
-                'Property': stats['name'],
+                'Property': property_name,
                 'Range': stats['range'],
                 'Average': stats['average']
             })
