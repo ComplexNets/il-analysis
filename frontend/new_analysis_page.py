@@ -49,7 +49,12 @@ def run_analysis():
     
     # Load from sample data if selected
     if use_sample_data:
-        sample_data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "thermal_ILs_long-list.csv")
+        # Use a relative path that will work on Railway
+        sample_data_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "thermal-1000-SAMPLE.csv")
+        
+        # Display the path for debugging
+        st.info(f"Looking for sample data at: {sample_data_path}")
+        
         if os.path.exists(sample_data_path):
             try:
                 # Try different encodings
