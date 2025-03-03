@@ -29,8 +29,22 @@ echo * To stop the Analysis Tool, press Ctrl+C in this window, then type 'Y' to 
 echo * Closing this window will terminate the Analysis Tool
 echo.
 
+REM Set initial port
+set PORT=8504
+
+REM Check if port is in use and increment until an available port is found
+:CHECK_PORT
+powershell -Command "if ((Get-NetTCPConnection -LocalPort %PORT% -ErrorAction SilentlyContinue).Count -gt 0) { exit 1 } else { exit 0 }"
+if %errorlevel% equ 1 (
+    echo Port %PORT% is in use. Trying port %PORT%+1...
+    set /a PORT+=1
+    goto CHECK_PORT
+)
+
+echo Using port %PORT%
+
 REM Run streamlit without pause - the command window will stay open while streamlit runs
-streamlit run frontend/new_analysis_page.py --server.port=8504
+streamlit run frontend/new_analysis_page.py --server.port=%PORT%
 
 REM This point is only reached when streamlit is closed
 echo.

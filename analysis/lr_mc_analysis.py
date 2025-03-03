@@ -993,6 +993,44 @@ class StatisticsAnalyzer:
             })
         
         return pd.DataFrame(table_data)
+    
+    def get_top_ionic_liquids(self, n=10, sort_by='Pareto Score'):
+        """
+        Get the top n ionic liquids based on Pareto Score or another property
+        
+        Parameters:
+        -----------
+        n : int
+            Number of top ionic liquids to return
+        sort_by : str
+            Property to sort by, defaults to 'Pareto Score'
+            
+        Returns:
+        --------
+        pd.DataFrame
+            DataFrame containing the top n ionic liquids and their properties
+        """
+        df = self.df.copy()
+        
+        # Check if the sort column exists
+        if sort_by not in df.columns:
+            # Default to first numeric column if Pareto Score doesn't exist
+            numeric_cols = df.select_dtypes(include=[np.number]).columns
+            if len(numeric_cols) > 0:
+                sort_by = numeric_cols[0]
+            else:
+                return pd.DataFrame()
+        
+        # Sort by the specified column in descending order
+        df = df.sort_values(by=sort_by, ascending=False)
+        
+        # Select top n rows
+        top_n = df.head(n)
+        
+        # Select relevant columns (exclude 'in_ilthermo' if it exists)
+        columns_to_display = [col for col in df.columns if col.lower() != 'in_ilthermo' and col.lower() != 'in ilthermo']
+        
+        return top_n[columns_to_display]
 
 class PCAAnalyzer:
     """Class for Principal Component Analysis of ionic liquid properties"""

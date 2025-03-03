@@ -586,6 +586,26 @@ def run_advanced_analysis():
         stats_table = statistics_analyzer.create_statistics_table()
         st.dataframe(stats_table)
         
+        # Add download and copy options for the table
+        if not stats_table.empty:
+            col1, col2 = st.columns(2)
+            
+            # Download as CSV
+            with col1:
+                csv = stats_table.to_csv(index=False)
+                b64 = base64.b64encode(csv.encode()).decode()
+                href = f'<a href="data:file/csv;base64,{b64}" download="property_statistics.csv">Download Statistics Table (CSV)</a>'
+                st.markdown(href, unsafe_allow_html=True)
+            
+            # Download as Excel
+            with col2:
+                buffer = io.BytesIO()
+                stats_table.to_excel(buffer, index=False, engine='openpyxl')
+                buffer.seek(0)
+                b64 = base64.b64encode(buffer.read()).decode()
+                href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="property_statistics.xlsx">Download Statistics Table (Excel)</a>'
+                st.markdown(href, unsafe_allow_html=True)
+        
         # Plot property distributions
         st.subheader("Property Distributions")
         fig, error = statistics_analyzer.plot_property_distributions()
@@ -601,6 +621,38 @@ def run_advanced_analysis():
             st.pyplot(fig)
         elif error:
             st.error(error)
+            
+        # Display top 10 ionic liquids
+        st.subheader("Top 10 Ionic Liquids")
+        st.write("The table below shows the top 10 ionic liquids based on Pareto Score.")
+        
+        # Get top 10 ionic liquids
+        top_10_ils = statistics_analyzer.get_top_ionic_liquids(n=10)
+        
+        if not top_10_ils.empty:
+            # Display the table
+            st.dataframe(top_10_ils)
+            
+            # Add download options
+            col1, col2 = st.columns(2)
+            
+            # Download as CSV
+            with col1:
+                csv = top_10_ils.to_csv(index=False)
+                b64 = base64.b64encode(csv.encode()).decode()
+                href = f'<a href="data:file/csv;base64,{b64}" download="top_10_ionic_liquids.csv">Download Top 10 ILs (CSV)</a>'
+                st.markdown(href, unsafe_allow_html=True)
+            
+            # Download as Excel
+            with col2:
+                buffer = io.BytesIO()
+                top_10_ils.to_excel(buffer, index=False, engine='openpyxl')
+                buffer.seek(0)
+                b64 = base64.b64encode(buffer.read()).decode()
+                href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="top_10_ionic_liquids.xlsx">Download Top 10 ILs (Excel)</a>'
+                st.markdown(href, unsafe_allow_html=True)
+        else:
+            st.warning("No ionic liquid data available to display top 10.")
 
 if __name__ == "__main__":
     run_advanced_analysis()
